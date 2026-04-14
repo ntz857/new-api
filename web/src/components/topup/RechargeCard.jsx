@@ -418,10 +418,10 @@ const RechargeCard = ({
                         // 数量转CNY，价格已是CNY
                         displayValue = preset.value * usdRate;
                       } else if (type === 'CUSTOM') {
-                        // 数量和价格都转自定义货币
+                        // priceRatio 已是自定义货币/USD，actualPay 已是自定义货币
                         displayValue = preset.value * rate;
-                        displayActualPay = (actualPay / usdRate) * rate;
-                        displaySave = (save / usdRate) * rate;
+                        displayActualPay = actualPay;
+                        displaySave = save;
                       }
 
                       return (

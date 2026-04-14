@@ -50,6 +50,9 @@ type User struct {
 	Setting          string         `json:"setting" gorm:"type:text;column:setting"`
 	Remark           string         `json:"remark,omitempty" gorm:"type:varchar(255)" validate:"max=255"`
 	StripeCustomer   string         `json:"stripe_customer" gorm:"type:varchar(64);column:stripe_customer;index"`
+	IsDistributor    bool           `json:"is_distributor" gorm:"type:boolean;default:false"` // 是否开通分销员权限
+	DistributorRatio float64        `json:"distributor_ratio" gorm:"type:double;default:0"`   // 该分销员获得充值现金的分成比例
+	CashBalance      float64        `json:"cash_balance" gorm:"type:double;column:cash_balance;default:0"` // 可提现的现金账户余额
 }
 
 func (user *User) ToBaseUser() *UserBase {
@@ -334,8 +337,11 @@ func inviteUser(inviterId int) (err error) {
 		return err
 	}
 	user.AffCount++
-	user.AffQuota += common.QuotaForInviter
-	user.AffHistoryQuota += common.QuotaForInviter
+	// 分销员专属账号不赠送邀请新人的点数，后续走提成分账
+	if !user.IsDistributor {
+		user.AffQuota += common.QuotaForInviter
+		user.AffHistoryQuota += common.QuotaForInviter
+	}
 	return DB.Save(user).Error
 }
 
@@ -424,10 +430,12 @@ func (user *User) Insert(inviterId int) error {
 			RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("使用邀请码赠送 %s", logger.LogQuota(common.QuotaForInvitee)))
 		}
 		if common.QuotaForInviter > 0 {
-			//_ = IncreaseUserQuota(inviterId, common.QuotaForInviter)
-			RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", logger.LogQuota(common.QuotaForInviter)))
-			_ = inviteUser(inviterId)
+			inviter, _ := GetUserById(inviterId, true)
+			if inviter != nil && !inviter.IsDistributor {
+				RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", logger.LogQuota(common.QuotaForInviter)))
+			}
 		}
+		_ = inviteUser(inviterId)
 	}
 	return nil
 }
@@ -485,9 +493,12 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 			RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("使用邀请码赠送 %s", logger.LogQuota(common.QuotaForInvitee)))
 		}
 		if common.QuotaForInviter > 0 {
-			RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", logger.LogQuota(common.QuotaForInviter)))
-			_ = inviteUser(inviterId)
+			inviter, _ := GetUserById(inviterId, true)
+			if inviter != nil && !inviter.IsDistributor {
+				RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", logger.LogQuota(common.QuotaForInviter)))
+			}
 		}
+		_ = inviteUser(inviterId)
 	}
 }
 
@@ -520,10 +531,12 @@ func (user *User) Edit(updatePassword bool) error {
 
 	newUser := *user
 	updates := map[string]interface{}{
-		"username":     newUser.Username,
-		"display_name": newUser.DisplayName,
-		"group":        newUser.Group,
-		"remark":       newUser.Remark,
+		"username":          newUser.Username,
+		"display_name":      newUser.DisplayName,
+		"group":             newUser.Group,
+		"remark":            newUser.Remark,
+		"is_distributor":    newUser.IsDistributor,
+		"distributor_ratio": newUser.DistributorRatio,
 	}
 	if updatePassword {
 		updates["password"] = newUser.Password
@@ -1045,4 +1058,23 @@ func RootUserExists() bool {
 		return false
 	}
 	return true
+}
+
+func GetDistributors(startIdx int, num int) ([]*User, int64, error) {
+	var users []*User
+	var total int64
+	if err := DB.Model(&User{}).Where("is_distributor = ?", true).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := DB.Where("is_distributor = ?", true).
+		Select("id, username, display_name, email, is_distributor, distributor_ratio, cash_balance, aff_count").
+		Order("id desc").Limit(num).Offset(startIdx).Find(&users).Error
+	return users, total, err
+}
+
+func SetDistributor(userId int, isDistributor bool, ratio float64) error {
+	return DB.Model(&User{}).Where("id = ?", userId).Updates(map[string]interface{}{
+		"is_distributor":    isDistributor,
+		"distributor_ratio": ratio,
+	}).Error
 }

@@ -827,14 +827,37 @@ const TopUp = () => {
           allSubscriptions={allSubscriptions}
           reloadSubscriptionSelf={getSubscriptionSelf}
         />
-        <InvitationCard
-          t={t}
-          userState={userState}
-          renderQuota={renderQuota}
-          setOpenTransfer={setOpenTransfer}
-          affLink={affLink}
-          handleAffLinkClick={handleAffLinkClick}
-        />
+        {!userState.user?.is_distributor && (
+          <InvitationCard
+            t={t}
+            userState={userState}
+            renderQuota={renderQuota}
+            setOpenTransfer={setOpenTransfer}
+            affLink={affLink}
+            handleAffLinkClick={handleAffLinkClick}
+            onApplyDistributor={() => {
+              let reason = '';
+              Modal.confirm({
+                title: t('申请成为分销员'),
+                content: (
+                  <div>
+                    <p style={{ marginBottom: 8 }}>{t('请简述申请理由（可选）')}</p>
+                    <textarea
+                      style={{ width: '100%', minHeight: 80, padding: 8, borderRadius: 4, border: '1px solid var(--semi-color-border)' }}
+                      onChange={e => { reason = e.target.value; }}
+                    />
+                  </div>
+                ),
+                onOk: async () => {
+                  const { API: api, showError: se, showSuccess: ss } = await import('../../helpers');
+                  const res = await api.post('/api/user/distributor/apply', { reason });
+                  if (res.data.success) ss(res.data.message);
+                  else se(res.data.message);
+                },
+              });
+            }}
+          />
+        )}
       </div>
     </div>
   );

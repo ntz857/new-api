@@ -94,6 +94,9 @@ const EditUserModal = (props) => {
     quota_amount: 0,
     group: 'default',
     remark: '',
+    is_distributor: false,
+    distributor_ratio: 0,
+    cash_balance: 0,
   });
 
   const fetchGroups = async () => {
@@ -410,6 +413,61 @@ const EditUserModal = (props) => {
                             readonly
                           />
                         </div>
+                      </Col>
+                    </Row>
+                  </Card>
+                )}
+
+                {/* 分销设置 */}
+                {userId && (
+                  <Card className='!rounded-2xl shadow-sm border-0'>
+                    <div className='flex items-center mb-2'>
+                      <Avatar
+                        size='small'
+                        color='orange'
+                        className='mr-2 shadow-md'
+                      >
+                        <IconUserGroup size={16} />
+                      </Avatar>
+                      <div>
+                        <Text className='text-lg font-medium'>
+                          {t('分销设置')}
+                        </Text>
+                        <div className='text-xs text-gray-600'>
+                          {t('开通后，下线充值的对应比例将以现金形式结算')}
+                        </div>
+                      </div>
+                    </div>
+
+                    <Row gutter={12}>
+                      <Col span={24}>
+                        <Form.Switch
+                          field='is_distributor'
+                          label={t('是否开启分销员')}
+                          checkedText={t('开启')}
+                          uncheckedText={t('关闭')}
+                        />
+                      </Col>
+                      <Col span={12}>
+                        <Form.InputNumber
+                          field='distributor_ratio'
+                          label={t('充值分红比例')}
+                          step={0.01}
+                          precision={2}
+                          min={0}
+                          max={1}
+                          style={{ width: '100%' }}
+                          placeholder='e.g. 0.15 for 15%'
+                        />
+                      </Col>
+                      <Col span={12}>
+                        <Form.InputNumber
+                          field='cash_balance'
+                          label={t('可提现余额')}
+                          prefix={getCurrencyConfig().symbol}
+                          style={{ width: '100%' }}
+                          readonly
+                        />
                       </Col>
                     </Row>
                   </Card>

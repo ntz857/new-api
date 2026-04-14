@@ -412,6 +412,9 @@ func GetSelf(c *gin.Context) {
 		"linux_do_id":       user.LinuxDOId,
 		"setting":           user.Setting,
 		"stripe_customer":   user.StripeCustomer,
+		"is_distributor":    user.IsDistributor,
+		"distributor_ratio": user.DistributorRatio,
+		"cash_balance":      user.CashBalance,
 		"sidebar_modules":   userSetting.SidebarModules, // 正确提取sidebar_modules字段
 		"permissions":       permissions,                // 新增权限字段
 	}

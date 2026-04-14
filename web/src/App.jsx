@@ -49,6 +49,8 @@ import OAuth2Callback from './components/auth/OAuth2Callback';
 import PersonalSetting from './components/settings/PersonalSetting';
 import Setup from './pages/Setup';
 import SetupCheck from './components/layout/SetupCheck';
+import Distributor from './pages/Distributor';
+import WithdrawAudit from './pages/Distributor/WithdrawAudit';
 
 const Home = lazy(() => import('./pages/Home'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -283,6 +285,26 @@ function App() {
             <PrivateRoute>
               <Log />
             </PrivateRoute>
+          }
+        />
+        <Route
+          path='/console/distributor'
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <Distributor />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path='/console/withdraw_audit'
+          element={
+            <AdminRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <WithdrawAudit />
+              </Suspense>
+            </AdminRoute>
           }
         />
         <Route

@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getLucideIcon } from '../../helpers/render';
@@ -27,6 +27,7 @@ import { useSidebar } from '../../hooks/common/useSidebar';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
 import { isAdmin, isRoot, showError } from '../../helpers';
 import SkeletonWrapper from './components/SkeletonWrapper';
+import { UserContext } from '../../context/User';
 
 import { Nav, Divider, Button } from '@douyinfe/semi-ui';
 
@@ -49,6 +50,8 @@ const routerMap = {
   deployment: '/console/deployment',
   playground: '/console/playground',
   personal: '/console/personal',
+  distributor: '/console/distributor',
+  withdraw_audit: '/console/withdraw_audit',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -59,6 +62,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
     hasSectionVisibleModules,
     loading: sidebarLoading,
   } = useSidebar();
+  const [userState] = useContext(UserContext);
 
   const showSkeleton = useMinimumLoadingTime(sidebarLoading, 200);
 
@@ -130,6 +134,11 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         to: '/topup',
       },
       {
+        text: t('分销中心'),
+        itemKey: 'distributor',
+        to: '/console/distributor',
+      },
+      {
         text: t('个人设置'),
         itemKey: 'personal',
         to: '/personal',
@@ -138,8 +147,10 @@ const SiderBar = ({ onNavigate = () => {} }) => {
 
     // 根据配置过滤项目
     const filteredItems = items.filter((item) => {
-      const configVisible = isModuleVisible('personal', item.itemKey);
-      return configVisible;
+      if (item.itemKey === 'distributor' && !userState?.user?.is_distributor) {
+        return false;
+      }
+      return isModuleVisible('personal', item.itemKey);
     });
 
     return filteredItems;
@@ -187,6 +198,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('系统设置'),
         itemKey: 'setting',
         to: '/setting',
+        className: isRoot() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('分销管理'),
+        itemKey: 'withdraw_audit',
+        to: '/console/withdraw_audit',
         className: isRoot() ? '' : 'tableHiddle',
       },
     ];

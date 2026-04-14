@@ -38,6 +38,7 @@ const InvitationCard = ({
   setOpenTransfer,
   affLink,
   handleAffLinkClick,
+  onApplyDistributor,
 }) => {
   return (
     <Card className='!rounded-2xl shadow-sm border-0'>
@@ -194,33 +195,63 @@ const InvitationCard = ({
         </Card>
 
         {/* 奖励说明 */}
-        <Card
-          className='!rounded-xl w-full'
-          title={<Text type='tertiary'>{t('奖励说明')}</Text>}
-        >
-          <div className='space-y-3'>
-            <div className='flex items-start gap-2'>
-              <Badge dot type='success' />
-              <Text type='tertiary' className='text-sm'>
-                {t('邀请好友注册，好友充值后您可获得相应奖励')}
-              </Text>
+        {!userState?.user?.is_distributor ? (
+          <Card className='!rounded-xl w-full' title={<Text type='tertiary'>{t('奖励模式对比')}</Text>}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {/* 普通模式 */}
+              <div style={{ padding: 12, borderRadius: 8, background: 'var(--semi-color-fill-0)' }}>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>{t('普通邀请')}</Text>
+                {[
+                  { ok: true,  text: t('好友注册得额度奖励') },
+                  { ok: true,  text: t('额度可划转到余额使用') },
+                  { ok: false, text: t('无现金佣金') },
+                  { ok: false, text: t('无法提现') },
+                ].map((item, i) => (
+                  <div key={i} className='flex items-center gap-2' style={{ marginBottom: 6 }}>
+                    <Text type={item.ok ? 'success' : 'tertiary'} style={{ fontSize: 14 }}>{item.ok ? '✓' : '✗'}</Text>
+                    <Text type='tertiary' style={{ fontSize: 13 }}>{item.text}</Text>
+                  </div>
+                ))}
+              </div>
+              {/* 分销员模式 */}
+              <div style={{ padding: 12, borderRadius: 8, background: 'var(--semi-color-primary-light-default)' }}>
+                <Text strong style={{ display: 'block', marginBottom: 8, color: 'var(--semi-color-primary)' }}>{t('分销员专属')}</Text>
+                {[
+                  { ok: false, text: t('好友注册不得额度') },
+                  { ok: true,  text: t('好友充值得现金佣金') },
+                  { ok: true,  text: t('可申请提现到账') },
+                ].map((item, i) => (
+                  <div key={i} className='flex items-center gap-2' style={{ marginBottom: 6 }}>
+                    <Text type={item.ok ? 'success' : 'tertiary'} style={{ fontSize: 14 }}>{item.ok ? '✓' : '✗'}</Text>
+                    <Text type='tertiary' style={{ fontSize: 13 }}>{item.text}</Text>
+                  </div>
+                ))}
+              </div>
             </div>
-
-            <div className='flex items-start gap-2'>
-              <Badge dot type='success' />
-              <Text type='tertiary' className='text-sm'>
-                {t('通过划转功能将奖励额度转入到您的账户余额中')}
-              </Text>
+            <div className='pt-3'>
+              <Button type='primary' theme='light' onClick={onApplyDistributor} style={{ width: '100%' }}>
+                {t('申请成为分销员')}
+              </Button>
             </div>
-
-            <div className='flex items-start gap-2'>
-              <Badge dot type='success' />
-              <Text type='tertiary' className='text-sm'>
-                {t('邀请的好友越多，获得的奖励越多')}
-              </Text>
+          </Card>
+        ) : (
+          <Card className='!rounded-xl w-full' title={<Text type='tertiary'>{t('奖励说明')}</Text>}>
+            <div className='space-y-3'>
+              <div className='flex items-start gap-2'>
+                <Badge dot type='success' />
+                <Text type='tertiary' className='text-sm'>{t('好友充值后您可获得相应现金佣金')}</Text>
+              </div>
+              <div className='flex items-start gap-2'>
+                <Badge dot type='success' />
+                <Text type='tertiary' className='text-sm'>{t('佣金累积后可申请提现')}</Text>
+              </div>
+              <div className='flex items-start gap-2'>
+                <Badge dot type='success' />
+                <Text type='tertiary' className='text-sm'>{t('邀请的好友越多，获得的佣金越多')}</Text>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        )}
       </Space>
     </Card>
   );
