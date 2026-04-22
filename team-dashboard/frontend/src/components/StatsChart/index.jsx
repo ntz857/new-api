@@ -1,30 +1,31 @@
 import React, { useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
 
-// members: [{ id, username, display_name }]
-// stats: [{ user_id, date, prompt_tokens, completion_tokens, total_tokens }]
-// hiddenIds: Set of member ids to hide
 export default function StatsChart({ members, stats, hiddenIds }) {
   const option = useMemo(() => {
-    // Collect all unique dates, sorted
     const dateSet = new Set(stats.map(s => s.date))
     const dates = Array.from(dateSet).sort()
 
-    // Build a lookup: user_id -> date -> stat object
     const lookup = {}
     for (const s of stats) {
       if (!lookup[s.user_id]) lookup[s.user_id] = {}
       lookup[s.user_id][s.date] = s
     }
 
-    const series = members
-      .filter(m => !hiddenIds.has(m.id))
-      .map(m => ({
-        name: m.display_name || m.username,
+    // Map unique series name → member id for tooltip lookup
+    const seriesNameToId = {}
+    const visibleMembers = members.filter(m => !hiddenIds.has(m.id))
+
+    const series = visibleMembers.map(m => {
+      const name = m.display_name || m.username
+      seriesNameToId[name] = m.id
+      return {
+        name,
         type: 'line',
         smooth: true,
         data: dates.map(d => lookup[m.id]?.[d]?.total_tokens ?? 0),
-      }))
+      }
+    })
 
     return {
       tooltip: {
@@ -33,7 +34,7 @@ export default function StatsChart({ members, stats, hiddenIds }) {
           const date = params[0]?.axisValue
           let html = `<b>${date}</b><br/>`
           for (const p of params) {
-            const memberId = members.find(m => (m.display_name || m.username) === p.seriesName)?.id
+            const memberId = seriesNameToId[p.seriesName]
             const s = memberId != null ? lookup[memberId]?.[date] : null
             if (s) {
               html += `${p.marker}${p.seriesName}: ${s.total_tokens.toLocaleString()}<br/>`
