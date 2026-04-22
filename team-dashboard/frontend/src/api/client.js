@@ -5,6 +5,16 @@ const client = axios.create({
   withCredentials: true, // send session cookie
 })
 
+client.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
 export const login = (username, password) =>
   client.post('/auth/login', { username, password }).then(r => r.data)
 
