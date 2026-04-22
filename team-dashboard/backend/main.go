@@ -26,7 +26,7 @@ func main() {
 	// CORS: allow the frontend origin
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:3000"},
-		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
 		AllowHeaders:     []string{"Content-Type"},
 		AllowCredentials: true,
 	}))
@@ -37,8 +37,8 @@ func main() {
 		Path:     "/",
 		MaxAge:   2592000, // 30 days
 		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteStrictMode,
+		Secure:   cfg.Secure,
+		SameSite: http.SameSiteLaxMode,
 	})
 	r.Use(sessions.Sessions("td_session", store))
 

@@ -10,6 +10,7 @@ type Config struct {
 	DBDSN         string
 	SessionSecret string
 	Port          string
+	Secure        bool // true in HTTPS production
 }
 
 func Load() *Config {
@@ -18,6 +19,7 @@ func Load() *Config {
 		DBDSN:         getEnv("DB_DSN", "new-api.db"),
 		SessionSecret: getEnv("SESSION_SECRET", "changeme-set-in-production"),
 		Port:          getEnv("PORT", "8080"),
+		Secure:        os.Getenv("SESSION_SECURE") == "true",
 	}
 	if cfg.SessionSecret == "changeme-set-in-production" {
 		log.Println("[WARNING] SESSION_SECRET is set to the default value. Set SESSION_SECRET env var before running in production.")
