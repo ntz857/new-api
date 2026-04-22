@@ -12,15 +12,22 @@ import (
 func RequireLogin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session := sessions.Default(c)
-		userID := session.Get("user_id")
-		username := session.Get("username")
-		if userID == nil || username == nil {
+		userIDRaw := session.Get("user_id")
+		usernameRaw := session.Get("username")
+		if userIDRaw == nil || usernameRaw == nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "未登录"})
 			c.Abort()
 			return
 		}
-		c.Set("user_id", userID.(int))
-		c.Set("username", username.(string))
+		userID, ok1 := userIDRaw.(int)
+		username, ok2 := usernameRaw.(string)
+		if !ok1 || !ok2 {
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "session 数据异常，请重新登录"})
+			c.Abort()
+			return
+		}
+		c.Set("user_id", userID)
+		c.Set("username", username)
 		c.Next()
 	}
 }
