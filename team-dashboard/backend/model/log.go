@@ -56,13 +56,21 @@ func GetDailyStats(memberIDs []int, start, end time.Time) ([]DailyStat, error) {
 		dateExpr = "DATE(datetime(created_at, 'unixepoch')) as date_str"
 	}
 
+	var groupExpr string
+	switch DBType {
+	case "postgres":
+		groupExpr = "user_id, TO_CHAR(TO_TIMESTAMP(created_at), 'YYYY-MM-DD')"
+	default:
+		groupExpr = "user_id, date_str"
+	}
+
 	err := DB.Model(&Log{}).
 		Select("user_id, "+dateExpr+", "+
 			"SUM(prompt_tokens) as prompt_tokens, "+
 			"SUM(completion_tokens) as completion_tokens, "+
 			"SUM(quota) as quota").
 		Where("user_id IN ? AND created_at >= ? AND created_at <= ?", memberIDs, startTs, endTs).
-		Group("user_id, date_str").
+		Group(groupExpr).
 		Scan(&rows).Error
 	if err != nil {
 		return nil, err
