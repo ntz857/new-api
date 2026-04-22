@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { Button, DatePicker, Spin, Toast, Typography } from '@douyinfe/semi-ui'
 import { getMembers, getStats, logout } from '../../api/client'
 import { useNavigate } from 'react-router-dom'
@@ -8,12 +8,15 @@ import StatsChart from '../../components/StatsChart'
 const { Title } = Typography
 
 const fmt = d => d.toISOString().slice(0, 10)
-const today = new Date()
-const sevenDaysAgo = new Date(today)
-sevenDaysAgo.setDate(today.getDate() - 6)
-
 export default function DashboardPage() {
   const navigate = useNavigate()
+
+  const { today, sevenDaysAgo } = useMemo(() => {
+    const t = new Date()
+    const s = new Date(t)
+    s.setDate(t.getDate() - 6)
+    return { today: t, sevenDaysAgo: s }
+  }, [])
   const [members, setMembers] = useState([])
   const [stats, setStats] = useState([])
   const [hiddenIds, setHiddenIds] = useState(new Set())
@@ -38,7 +41,7 @@ export default function DashboardPage() {
     }
   }, [])
 
-  useEffect(() => { fetchData(dateRange[0], dateRange[1]) }, [])
+  useEffect(() => { fetchData(dateRange[0], dateRange[1]) }, [fetchData])
 
   const handleDateChange = (val) => {
     if (!val || val.length !== 2) return
@@ -59,15 +62,17 @@ export default function DashboardPage() {
     navigate('/login')
   }
 
-  // Compute today/thisMonth tokens per member from the stats data
-  const todayStr = fmt(today)
-  const thisMonthPrefix = todayStr.slice(0, 7) // "YYYY-MM"
-  const tokenSummary = {}
-  for (const s of stats) {
-    if (!tokenSummary[s.user_id]) tokenSummary[s.user_id] = { today: 0, thisMonth: 0 }
-    if (s.date === todayStr) tokenSummary[s.user_id].today += s.total_tokens
-    if (s.date.startsWith(thisMonthPrefix)) tokenSummary[s.user_id].thisMonth += s.total_tokens
-  }
+  const tokenSummary = useMemo(() => {
+    const todayStr = fmt(today)
+    const thisMonthPrefix = todayStr.slice(0, 7)
+    const summary = {}
+    for (const s of stats) {
+      if (!summary[s.user_id]) summary[s.user_id] = { today: 0, thisMonth: 0 }
+      if (s.date === todayStr) summary[s.user_id].today += s.total_tokens
+      if (s.date.startsWith(thisMonthPrefix)) summary[s.user_id].thisMonth += s.total_tokens
+    }
+    return summary
+  }, [stats, today])
 
   return (
     <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
