@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"log"
 	"team-dashboard/config"
 
 	"gorm.io/driver/mysql"
@@ -33,5 +34,18 @@ func InitDB(cfg *config.Config) error {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
 	DB = db
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get sql.DB: %w", err)
+	}
+	if err := sqlDB.Ping(); err != nil {
+		return fmt.Errorf("database ping failed: %w", err)
+	}
+	if cfg.DBType == "sqlite" || cfg.DBType == "" {
+		sqlDB.SetMaxOpenConns(1)
+		if err := db.Exec("PRAGMA journal_mode=WAL").Error; err != nil {
+			log.Printf("[WARNING] Failed to set WAL mode: %v", err)
+		}
+	}
 	return nil
 }
