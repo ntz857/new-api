@@ -9,6 +9,7 @@ import TokenManager from '../../components/TokenManager'
 import KumaStatus from '../../components/KumaStatus'
 import RankingChart from '../../components/RankingChart'
 import GroupDailyQuotaChart from '../../components/GroupDailyQuotaChart'
+import GroupTodayQuotaCards from '../../components/GroupTodayQuotaCards'
 
 const { Title, Text } = Typography
 
@@ -202,6 +203,12 @@ export default function DashboardPage() {
           {members.length === 0 && !loading && (
             <Text type="tertiary">暂无团队成员（通过邀请链接注册的用户会出现在此处）</Text>
           )}
+        </div>
+
+        {/* Group today quota cards */}
+        <div style={{ background: '#fff', borderRadius: 8, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,.08)', marginBottom: 16 }}>
+          <Title heading={5} style={{ marginBottom: 12 }}>今日各分组消耗</Title>
+          <GroupTodayQuotaCards groupStats={groupStats} />
         </div>
 
         {/* Member filter */}
