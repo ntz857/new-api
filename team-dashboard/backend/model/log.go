@@ -196,7 +196,7 @@ func GetDailyGroupStats(memberIDs []int, start, end time.Time) ([]DailyGroupStat
 	var rows []rawRow
 	err := DB.Model(&Log{}).
 		Select("`group` as group_name, "+dateExpr+", SUM(quota) as quota").
-		Where("user_id IN ? AND created_at >= ? AND created_at <= ?", memberIDs, startTs, endTs).
+		Where("user_id IN ? AND created_at >= ? AND created_at <= ? AND `group` != ''", memberIDs, startTs, endTs).
 		Group(groupExpr).
 		Scan(&rows).Error
 	if err != nil {
@@ -205,12 +205,8 @@ func GetDailyGroupStats(memberIDs []int, start, end time.Time) ([]DailyGroupStat
 
 	stats := make([]DailyGroupStat, 0, len(rows))
 	for _, r := range rows {
-		g := r.GroupName
-		if g == "" {
-			g = "default"
-		}
 		stats = append(stats, DailyGroupStat{
-			Group: g,
+			Group: r.GroupName,
 			Date:  r.DateStr,
 			Quota: r.Quota,
 		})
