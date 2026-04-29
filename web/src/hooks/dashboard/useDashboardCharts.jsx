@@ -383,6 +383,67 @@ export const useDashboardCharts = (
     color: { type: 'ordinal', range: USER_COLORS },
   });
 
+  // ========== 用户每日消耗堆叠柱状图 ==========
+  const [spec_user_daily_stack, setSpecUserDailyStack] = useState({
+    type: 'bar',
+    data: [{ id: 'userDailyStackData', values: [] }],
+    xField: 'Time',
+    yField: 'rawQuota',
+    seriesField: 'User',
+    stack: true,
+    legends: { visible: true, selectMode: 'single' },
+    title: {
+      visible: true,
+      text: t('用户每日消耗'),
+      subtext: '',
+    },
+    bar: {
+      state: { hover: { stroke: '#000', lineWidth: 1 } },
+    },
+    axes: [
+      {
+        orient: 'left',
+        label: {
+          formatMethod: (value) => renderQuota(value, 2),
+        },
+      },
+    ],
+    tooltip: {
+      mark: {
+        content: [
+          {
+            key: (datum) => datum['User'],
+            value: (datum) => renderQuota(datum['rawQuota'] || 0, 4),
+          },
+        ],
+      },
+      dimension: {
+        content: [
+          {
+            key: (datum) => datum['User'],
+            value: (datum) => datum['rawQuota'] || 0,
+          },
+        ],
+        updateContent: (array) => {
+          array.sort((a, b) => b.value - a.value);
+          let sum = 0;
+          for (let i = 0; i < array.length; i++) {
+            let value = parseFloat(array[i].value);
+            if (isNaN(value)) value = 0;
+            sum += value;
+            array[i].value = renderQuota(value, 4);
+          }
+          array.unshift({
+            key: t('总计'),
+            value: renderQuota(sum, 4),
+          });
+          return array;
+        },
+      },
+    },
+    color: { type: 'ordinal', range: USER_COLORS },
+  });
+
   // ========== 数据处理函数 ==========
   const generateModelColors = useCallback((uniqueModels, modelColors) => {
     const newModelColors = {};
@@ -563,6 +624,41 @@ export const useDashboardCharts = (
   );
 
   // ========== 用户维度图表数据处理 ==========
+  const updateUserDailyStackChart = useCallback(
+    (trendValues, totalQuota) => {
+      setSpecUserDailyStack((prev) => ({
+        ...prev,
+        data: [{ id: 'userDailyStackData', values: trendValues }],
+        title: {
+          ...prev.title,
+          subtext: `${t('总计')}：${renderQuota(totalQuota, 2)}`,
+        },
+      }));
+    },
+    [t],
+  );
+
+  const updateSelfDailyStackChart = useCallback(
+    (data, username) => {
+      if (!data || data.length === 0 || !username) return;
+      // 将 self data（多 model）按日期聚合为单用户每日消耗
+      const { trendData: selfTrend } = processUserData(
+        data.map((item) => ({ ...item, username })),
+        dataExportDefaultTime,
+        1,
+      );
+      const trendValues = selfTrend.map((item) => ({
+        Time: item.Time,
+        User: item.User,
+        rawQuota: item.Quota,
+        Usage: item.Quota ? getQuotaWithUnit(item.Quota, 4) : 0,
+      }));
+      const totalQuota = data.reduce((sum, item) => sum + (item.quota || 0), 0);
+      updateUserDailyStackChart(trendValues, totalQuota);
+    },
+    [dataExportDefaultTime, updateUserDailyStackChart],
+  );
+
   const updateUserChartData = useCallback(
     (data) => {
       const { rankingData, trendData: userTrend } = processUserData(
@@ -603,6 +699,8 @@ export const useDashboardCharts = (
           subtext: `${t('总计')}：${renderQuota(totalUserQuota, 2)}`,
         },
       }));
+      // 更新用户每日消耗堆叠图（与 userTrendValues 格式相同）
+      updateUserDailyStackChart(userTrendValues, totalUserQuota);
     },
     [dataExportDefaultTime, t],
   );
@@ -621,8 +719,10 @@ export const useDashboardCharts = (
     spec_rank_bar,
     spec_user_rank,
     spec_user_trend,
+    spec_user_daily_stack,
     updateChartData,
     updateUserChartData,
+    updateSelfDailyStackChart,
     generateModelColors,
   };
 };
