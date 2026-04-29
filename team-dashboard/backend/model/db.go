@@ -5,9 +5,9 @@ import (
 	"log"
 	"team-dashboard/config"
 
+	"github.com/glebarez/sqlite"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -24,8 +24,7 @@ func InitDB(cfg *config.Config) error {
 	case "postgres":
 		dialector = postgres.Open(cfg.DBDSN)
 	default:
-		dialector = sqlite.Open(cfg.DBDSN)
-	}
+		dialector = sqlite.Open(cfg.DBDSN)	}
 
 	db, err := gorm.Open(dialector, &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Warn),

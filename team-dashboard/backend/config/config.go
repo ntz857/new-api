@@ -12,6 +12,7 @@ type Config struct {
 	Port          string
 	Secure        bool   // true in HTTPS production
 	CORSOrigins   string // comma-separated list of allowed origins
+	StaticDir     string // path to frontend dist directory
 }
 
 func Load() *Config {
@@ -22,6 +23,7 @@ func Load() *Config {
 		Port:          getEnv("PORT", "8080"),
 		Secure:        os.Getenv("SESSION_SECURE") == "true",
 		CORSOrigins:   getEnv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000"),
+		StaticDir:     getEnv("STATIC_DIR", "../frontend/dist"),
 	}
 	if cfg.SessionSecret == "changeme-set-in-production" {
 		log.Println("[WARNING] SESSION_SECRET is set to the default value. Set SESSION_SECRET env var before running in production.")

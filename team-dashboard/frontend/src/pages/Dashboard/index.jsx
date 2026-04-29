@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { Button, DatePicker, Select, Spin, Toast, Typography } from '@douyinfe/semi-ui'
-import { getMembers, getStats, getModelStats, logout } from '../../api/client'
+import { getMembers, getStats, getModelStats, getGroupStats, logout } from '../../api/client'
 import { useNavigate } from 'react-router-dom'
 import MemberCard from '../../components/MemberCard'
 import ModelTokenChart from '../../components/ModelTokenChart'
@@ -58,6 +58,7 @@ export default function DashboardPage() {
   const [members, setMembers] = useState([])
   const [stats, setStats] = useState([])
   const [modelStats, setModelStats] = useState([])
+  const [groupStats, setGroupStats] = useState([])
   const [selectedIds, setSelectedIds] = useState(null)
   const [activePreset, setActivePreset] = useState('7d')
   const [dateRange, setDateRange] = useState(getPreset('7d'))
@@ -66,17 +67,20 @@ export default function DashboardPage() {
   const fetchData = useCallback(async (start, end) => {
     setLoading(true)
     try {
-      const [mRes, sRes, msRes] = await Promise.all([
+      const [mRes, sRes, msRes, gsRes] = await Promise.all([
         getMembers(),
         getStats(fmt(start), fmt(end)),
         getModelStats(fmt(start), fmt(end)),
+        getGroupStats(fmt(start), fmt(end)),
       ])
       if (!mRes.success)  { Toast.error(mRes.message);  return }
       if (!sRes.success)  { Toast.error(sRes.message);  return }
       if (!msRes.success) { Toast.error(msRes.message); return }
+      if (!gsRes.success) { Toast.error(gsRes.message); return }
       setMembers(mRes.data   || [])
       setStats(sRes.data     || [])
       setModelStats(msRes.data || [])
+      setGroupStats(gsRes.data || [])
       setSelectedIds(null) // reset to all on reload
     } catch {
       Toast.error('加载失败，请刷新重试')
@@ -226,7 +230,7 @@ export default function DashboardPage() {
           </div>
           <div style={{ background: '#fff', borderRadius: 8, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,.08)' }}>
             <Title heading={5} style={{ marginBottom: 8 }}>每日消耗金额（分组堆叠）</Title>
-            <GroupDailyQuotaChart members={members} stats={stats} hiddenIds={hiddenIds} />
+            <GroupDailyQuotaChart groupStats={groupStats} />
           </div>
           <div style={{ background: '#fff', borderRadius: 8, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,.08)' }}>
             <Title heading={5} style={{ marginBottom: 8 }}>每日 Token 消耗（按模型）</Title>

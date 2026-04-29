@@ -1,32 +1,53 @@
 import React from 'react'
-import { Card, Typography } from '@douyinfe/semi-ui'
+import { Typography } from '@douyinfe/semi-ui'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
-// tokens: { today: number, thisMonth: number } (total = prompt + completion)
-export default function MemberCard({ member, tokens, active, onClick }) {
-  const fmt = n => n >= 1_000_000
+const QUOTA_TO_USD = 1 / 500000
+
+export default function MemberCard({ member, tokens, quota }) {
+  const fmtUSD = q => `$${(q * QUOTA_TO_USD).toFixed(2)}`
+  const fmtTokens = n => n >= 1_000_000
     ? `${(n / 1_000_000).toFixed(1)}M`
     : n >= 1000
     ? `${(n / 1000).toFixed(1)}k`
     : String(n)
 
+  const dn = member.display_name?.trim()
+  const name = dn && dn !== member.username ? dn : member.username
+  const sub = dn && dn !== member.username ? member.username : null
+
   return (
-    <Card
-      onClick={onClick}
-      style={{
-        width: 160,
-        cursor: 'pointer',
-        border: active ? '2px solid var(--semi-color-primary)' : '2px solid transparent',
-        flexShrink: 0,
-      }}
-    >
-      <Title heading={6} ellipsis={{ showTooltip: true }}>
-        {member.display_name || member.username}
-      </Title>
-      <Text type="secondary" size="small">今日：{fmt(tokens.today)}</Text>
-      <br />
-      <Text type="secondary" size="small">本月：{fmt(tokens.thisMonth)}</Text>
-    </Card>
+    <div style={{
+      background: '#fff',
+      borderRadius: 8,
+      padding: '10px 14px',
+      boxShadow: '0 1px 3px rgba(0,0,0,.08)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6,
+    }}>
+      {/* 姓名 */}
+      <div style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 6 }}>
+        <Text strong ellipsis={{ showTooltip: true }} style={{ fontSize: 13, display: 'block' }}>{name}</Text>
+        {sub && <Text type="tertiary" style={{ fontSize: 11 }}>{sub}</Text>}
+      </div>
+      {/* 数据 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text type="tertiary" style={{ fontSize: 11 }}>今日</Text>
+        <div style={{ textAlign: 'right' }}>
+          <Text style={{ fontSize: 12 }}>{fmtTokens(tokens?.today ?? 0)}</Text>
+          <Text style={{ fontSize: 11, color: 'var(--semi-color-warning)', marginLeft: 6 }}>{fmtUSD(quota?.today ?? 0)}</Text>
+        </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text type="tertiary" style={{ fontSize: 11 }}>本月</Text>
+        <div style={{ textAlign: 'right' }}>
+          <Text style={{ fontSize: 12 }}>{fmtTokens(tokens?.thisMonth ?? 0)}</Text>
+          <Text style={{ fontSize: 11, color: 'var(--semi-color-warning)', marginLeft: 6 }}>{fmtUSD(quota?.thisMonth ?? 0)}</Text>
+        </div>
+      </div>
+    </div>
   )
 }
+

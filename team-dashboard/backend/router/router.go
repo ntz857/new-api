@@ -21,6 +21,10 @@ func SetupRoutes(r *gin.Engine) {
 		{
 			team.GET("/members", controller.Members)
 			team.GET("/stats", controller.Stats)
+			team.GET("/model-stats", controller.ModelStats)
+			team.GET("/group-stats", controller.GroupStats)
+			team.GET("/tokens", controller.ListTokens)
+			team.GET("/kuma", controller.GetKumaStatus)
 		}
 	}
 }

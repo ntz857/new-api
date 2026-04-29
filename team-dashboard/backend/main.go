@@ -47,9 +47,21 @@ func main() {
 	})
 	r.Use(sessions.Sessions("td_session", store))
 
+	// Serve frontend static files
+	r.Static("/assets", cfg.StaticDir+"/assets")
+	r.StaticFile("/favicon.ico", cfg.StaticDir+"/favicon.ico")
+	r.NoRoute(func(c *gin.Context) {
+		// Let /api 404s fall through as JSON, not HTML
+		if len(c.Request.URL.Path) >= 4 && c.Request.URL.Path[:4] == "/api" {
+			c.JSON(404, gin.H{"message": "not found"})
+			return
+		}
+		c.File(cfg.StaticDir + "/index.html")
+	})
+
 	router.SetupRoutes(r)
 
-	addr := fmt.Sprintf(":%s", cfg.Port)
+	addr := fmt.Sprintf("0.0.0.0:%s", cfg.Port)
 	log.Printf("Team Dashboard backend listening on %s", addr)
 	if err := r.Run(addr); err != nil {
 		log.Fatalf("server error: %v", err)

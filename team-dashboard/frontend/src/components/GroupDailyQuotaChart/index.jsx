@@ -3,34 +3,32 @@ import ReactECharts from 'echarts-for-react'
 
 const QUOTA_TO_USD = 1 / 500000
 
-export default function GroupDailyQuotaChart({ members, stats, hiddenIds }) {
+// groupStats: [{ group: string, date: "YYYY-MM-DD", quota: number }]
+export default function GroupDailyQuotaChart({ groupStats }) {
   const option = useMemo(() => {
-    const dateSet = new Set(stats.map(s => s.date))
+    const dateSet = new Set(groupStats.map(s => s.date))
     const dates = Array.from(dateSet).sort()
 
+    const groupSet = new Set(groupStats.map(s => s.group))
+    const groups = Array.from(groupSet).sort()
+
+    // lookup[group][date] = quota
     const lookup = {}
-    for (const s of stats) {
-      if (!lookup[s.user_id]) lookup[s.user_id] = {}
-      lookup[s.user_id][s.date] = s
+    for (const s of groupStats) {
+      if (!lookup[s.group]) lookup[s.group] = {}
+      lookup[s.group][s.date] = (lookup[s.group][s.date] || 0) + s.quota
     }
 
-    const visibleMembers = members.filter(m => !hiddenIds.has(m.id))
-
-    const series = visibleMembers.map(m => {
-      const dn = m.display_name?.trim()
-      const name = dn && dn !== m.username ? `${m.username}(${dn})` : m.username
-      return {
-        name,
-        type: 'bar',
-        stack: 'quota',
-        emphasis: { focus: 'series' },
-        data: dates.map(d => {
-          const s = lookup[m.id]?.[d]
-          if (!s) return 0
-          return parseFloat((s.quota * QUOTA_TO_USD).toFixed(6))
-        }),
-      }
-    })
+    const series = groups.map(g => ({
+      name: g,
+      type: 'bar',
+      stack: 'quota',
+      emphasis: { focus: 'series' },
+      data: dates.map(d => {
+        const q = lookup[g]?.[d] || 0
+        return parseFloat((q * QUOTA_TO_USD).toFixed(6))
+      }),
+    }))
 
     return {
       tooltip: {
@@ -56,14 +54,12 @@ export default function GroupDailyQuotaChart({ members, stats, hiddenIds }) {
       yAxis: {
         type: 'value',
         name: 'USD ($)',
-        axisLabel: {
-          formatter: v => '$' + v.toFixed(4),
-        },
+        axisLabel: { formatter: v => '$' + v.toFixed(4) },
       },
       series,
       grid: { top: 16, right: 20, bottom: 48, left: 80 },
     }
-  }, [members, stats, hiddenIds])
+  }, [groupStats])
 
   return (
     <ReactECharts option={option} style={{ height: 300, width: '100%' }} notMerge />

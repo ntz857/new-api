@@ -6,11 +6,12 @@ import (
 
 // Log mirrors the relevant columns from new-api's logs table (read-only).
 type Log struct {
-	UserId           int   `gorm:"column:user_id"`
-	CreatedAt        int64 `gorm:"column:created_at"`
-	PromptTokens     int   `gorm:"column:prompt_tokens"`
-	CompletionTokens int   `gorm:"column:completion_tokens"`
-	Quota            int   `gorm:"column:quota"`
+	UserId           int    `gorm:"column:user_id"`
+	CreatedAt        int64  `gorm:"column:created_at"`
+	PromptTokens     int    `gorm:"column:prompt_tokens"`
+	CompletionTokens int    `gorm:"column:completion_tokens"`
+	Quota            int    `gorm:"column:quota"`
+	Group            string `gorm:"column:group"`
 }
 
 func (Log) TableName() string { return "logs" }
@@ -25,6 +26,31 @@ type DailyStat struct {
 	Quota            int64  `json:"quota"`
 }
 
+// DailyModelStat is like DailyStat but also broken down by model_name.
+type DailyModelStat struct {
+	UserID           int    `json:"user_id"`
+	Date             string `json:"date"`
+	ModelName        string `json:"model_name"`
+	PromptTokens     int64  `json:"prompt_tokens"`
+	CompletionTokens int64  `json:"completion_tokens"`
+	TotalTokens      int64  `json:"total_tokens"`
+}
+
+func dateExprs() (selectExpr, groupExpr string) {
+	switch DBType {
+	case "postgres":
+		selectExpr = "TO_CHAR(TO_TIMESTAMP(created_at), 'YYYY-MM-DD') as date_str"
+		groupExpr = "user_id, TO_CHAR(TO_TIMESTAMP(created_at), 'YYYY-MM-DD')"
+	case "mysql":
+		selectExpr = "DATE(FROM_UNIXTIME(created_at)) as date_str"
+		groupExpr = "user_id, date_str"
+	default: // sqlite
+		selectExpr = "DATE(datetime(created_at, 'unixepoch')) as date_str"
+		groupExpr = "user_id, date_str"
+	}
+	return
+}
+
 // GetDailyStats returns per-user per-day token stats for the given member IDs
 // within [start, end] (inclusive). memberIDs must be pre-validated as belonging
 // to the requesting leader — this function does NOT re-check ownership.
@@ -34,7 +60,7 @@ func GetDailyStats(memberIDs []int, start, end time.Time) ([]DailyStat, error) {
 	}
 
 	startTs := start.Unix()
-	endTs := end.Add(24*time.Hour - time.Second).Unix() // end of day
+	endTs := end.Add(24*time.Hour - time.Second).Unix()
 
 	type rawRow struct {
 		UserID           int
@@ -45,24 +71,7 @@ func GetDailyStats(memberIDs []int, start, end time.Time) ([]DailyStat, error) {
 	}
 
 	var rows []rawRow
-
-	var dateExpr string
-	switch DBType {
-	case "postgres":
-		dateExpr = "TO_CHAR(TO_TIMESTAMP(created_at), 'YYYY-MM-DD') as date_str"
-	case "mysql":
-		dateExpr = "DATE(FROM_UNIXTIME(created_at)) as date_str"
-	default: // sqlite
-		dateExpr = "DATE(datetime(created_at, 'unixepoch')) as date_str"
-	}
-
-	var groupExpr string
-	switch DBType {
-	case "postgres":
-		groupExpr = "user_id, TO_CHAR(TO_TIMESTAMP(created_at), 'YYYY-MM-DD')"
-	default:
-		groupExpr = "user_id, date_str"
-	}
+	dateExpr, groupExpr := dateExprs()
 
 	err := DB.Model(&Log{}).
 		Select("user_id, "+dateExpr+", "+
@@ -85,6 +94,125 @@ func GetDailyStats(memberIDs []int, start, end time.Time) ([]DailyStat, error) {
 			CompletionTokens: r.CompletionTokens,
 			TotalTokens:      r.PromptTokens + r.CompletionTokens,
 			Quota:            r.Quota,
+		})
+	}
+	return stats, nil
+}
+
+// GetDailyModelStats returns per-user per-day per-model token stats.
+func GetDailyModelStats(memberIDs []int, start, end time.Time) ([]DailyModelStat, error) {
+	if len(memberIDs) == 0 {
+		return []DailyModelStat{}, nil
+	}
+
+	startTs := start.Unix()
+	endTs := end.Add(24*time.Hour - time.Second).Unix()
+
+	type rawRow struct {
+		UserID           int
+		DateStr          string
+		ModelName        string
+		PromptTokens     int64
+		CompletionTokens int64
+	}
+
+	var rows []rawRow
+
+	var dateExpr, groupExpr string
+	switch DBType {
+	case "postgres":
+		dateExpr = "TO_CHAR(TO_TIMESTAMP(created_at), 'YYYY-MM-DD') as date_str"
+		groupExpr = "user_id, TO_CHAR(TO_TIMESTAMP(created_at), 'YYYY-MM-DD'), model_name"
+	case "mysql":
+		dateExpr = "DATE(FROM_UNIXTIME(created_at)) as date_str"
+		groupExpr = "user_id, date_str, model_name"
+	default:
+		dateExpr = "DATE(datetime(created_at, 'unixepoch')) as date_str"
+		groupExpr = "user_id, date_str, model_name"
+	}
+
+	err := DB.Model(&Log{}).
+		Select("user_id, "+dateExpr+", model_name, "+
+			"SUM(prompt_tokens) as prompt_tokens, "+
+			"SUM(completion_tokens) as completion_tokens").
+		Where("user_id IN ? AND created_at >= ? AND created_at <= ? AND model_name != ''",
+			memberIDs, startTs, endTs).
+		Group(groupExpr).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	stats := make([]DailyModelStat, 0, len(rows))
+	for _, r := range rows {
+		stats = append(stats, DailyModelStat{
+			UserID:           r.UserID,
+			Date:             r.DateStr,
+			ModelName:        r.ModelName,
+			PromptTokens:     r.PromptTokens,
+			CompletionTokens: r.CompletionTokens,
+			TotalTokens:      r.PromptTokens + r.CompletionTokens,
+		})
+	}
+	return stats, nil
+}
+
+// DailyGroupStat aggregates quota by token-group per day.
+type DailyGroupStat struct {
+	Group string `json:"group"`
+	Date  string `json:"date"` // "YYYY-MM-DD"
+	Quota int64  `json:"quota"`
+}
+
+// GetDailyGroupStats returns per-group per-day quota for the given member IDs.
+// memberIDs must be pre-validated as belonging to the requesting leader.
+func GetDailyGroupStats(memberIDs []int, start, end time.Time) ([]DailyGroupStat, error) {
+	if len(memberIDs) == 0 {
+		return []DailyGroupStat{}, nil
+	}
+
+	startTs := start.Unix()
+	endTs := end.Add(24*time.Hour - time.Second).Unix()
+
+	type rawRow struct {
+		GroupName string
+		DateStr   string
+		Quota     int64
+	}
+
+	var dateExpr, groupExpr string
+	switch DBType {
+	case "postgres":
+		dateExpr = "TO_CHAR(TO_TIMESTAMP(created_at), 'YYYY-MM-DD') as date_str"
+		groupExpr = `"group", TO_CHAR(TO_TIMESTAMP(created_at), 'YYYY-MM-DD')`
+	case "mysql":
+		dateExpr = "DATE(FROM_UNIXTIME(created_at)) as date_str"
+		groupExpr = "`group`, date_str"
+	default: // sqlite
+		dateExpr = "DATE(datetime(created_at, 'unixepoch')) as date_str"
+		groupExpr = "`group`, date_str"
+	}
+
+	var rows []rawRow
+	err := DB.Model(&Log{}).
+		Select("`group` as group_name, "+dateExpr+", SUM(quota) as quota").
+		Where("user_id IN ? AND created_at >= ? AND created_at <= ?", memberIDs, startTs, endTs).
+		Group(groupExpr).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	stats := make([]DailyGroupStat, 0, len(rows))
+	for _, r := range rows {
+		g := r.GroupName
+		if g == "" {
+			g = "default"
+		}
+		stats = append(stats, DailyGroupStat{
+			Group: g,
+			Date:  r.DateStr,
+			Quota: r.Quota,
 		})
 	}
 	return stats, nil

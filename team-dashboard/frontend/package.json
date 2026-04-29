@@ -12,6 +12,7 @@
   "dependencies": {
     "@douyinfe/semi-icons": "^2.95.1",
     "@douyinfe/semi-ui": "^2.95.1",
+    "@douyinfe/vite-plugin-semi": "^2.74.0-alpha.6",
     "axios": "^1.15.2",
     "echarts": "^6.0.0",
     "echarts-for-react": "^3.0.6",
