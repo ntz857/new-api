@@ -95,20 +95,10 @@ const Dashboard = () => {
     }
   };
 
-  const loadSelfDailyData = (quotaData) => {
-    if (!dashboardData.isAdminUser) {
-      dashboardCharts.updateSelfDailyStackChart(
-        quotaData,
-        userState?.user?.username,
-      );
-    }
-  };
-
   const initChart = async () => {
     await dashboardData.loadQuotaData().then((data) => {
       if (data && data.length > 0) {
         dashboardCharts.updateChartData(data);
-        loadSelfDailyData(data);
       }
     });
     await loadUserData();
@@ -119,18 +109,12 @@ const Dashboard = () => {
     const data = await dashboardData.refresh();
     if (data && data.length > 0) {
       dashboardCharts.updateChartData(data);
-      loadSelfDailyData(data);
     }
     await loadUserData();
   };
 
   const handleSearchConfirm = async () => {
-    const data = await dashboardData.loadQuotaData();
-    if (data && data.length > 0) {
-      dashboardCharts.updateChartData(data);
-      loadSelfDailyData(data);
-    }
-    dashboardData.handleCloseModal();
+    await dashboardData.handleSearchConfirm(dashboardCharts.updateChartData);
     await loadUserData();
   };
 
@@ -212,7 +196,6 @@ const Dashboard = () => {
             spec_rank_bar={dashboardCharts.spec_rank_bar}
             spec_user_rank={dashboardCharts.spec_user_rank}
             spec_user_trend={dashboardCharts.spec_user_trend}
-            spec_user_daily_stack={dashboardCharts.spec_user_daily_stack}
             isAdminUser={dashboardData.isAdminUser}
             CARD_PROPS={CARD_PROPS}
             CHART_CONFIG={CHART_CONFIG}
