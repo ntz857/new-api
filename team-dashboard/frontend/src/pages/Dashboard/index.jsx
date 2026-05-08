@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { Button, DatePicker, Select, Spin, Toast, Typography } from '@douyinfe/semi-ui'
-import { getMembers, getStats, getModelStats, getGroupStats, logout } from '../../api/client'
+import { getMembers, getStats, getModelStats, getGroupStats, getFrt, logout } from '../../api/client'
 import { useNavigate } from 'react-router-dom'
 import MemberCard from '../../components/MemberCard'
 import ModelTokenChart from '../../components/ModelTokenChart'
@@ -64,24 +64,28 @@ export default function DashboardPage() {
   const [activePreset, setActivePreset] = useState('7d')
   const [dateRange, setDateRange] = useState(getPreset('7d'))
   const [loading, setLoading] = useState(false)
+  const [frtMap, setFrtMap] = useState({})
 
   const fetchData = useCallback(async (start, end) => {
     setLoading(true)
     try {
-      const [mRes, sRes, msRes, gsRes] = await Promise.all([
+      const [mRes, sRes, msRes, gsRes, frtRes] = await Promise.all([
         getMembers(),
         getStats(fmt(start), fmt(end)),
         getModelStats(fmt(start), fmt(end)),
         getGroupStats(fmt(start), fmt(end)),
+        getFrt(),
       ])
       if (!mRes.success)  { Toast.error(mRes.message);  return }
       if (!sRes.success)  { Toast.error(sRes.message);  return }
       if (!msRes.success) { Toast.error(msRes.message); return }
       if (!gsRes.success) { Toast.error(gsRes.message); return }
+      if (!frtRes.success) { Toast.error(frtRes.message); return }
       setMembers(mRes.data   || [])
       setStats(sRes.data     || [])
       setModelStats(msRes.data || [])
       setGroupStats(gsRes.data || [])
+      setFrtMap(frtRes.data || {})
       setSelectedIds(null) // reset to all on reload
     } catch {
       Toast.error('加载失败，请刷新重试')
@@ -155,6 +159,16 @@ export default function DashboardPage() {
     return { tokenSummary: tokens, quotaSummary: quota }
   }, [stats, today])
 
+  const periodSummary = useMemo(() => {
+    const result = {}
+    for (const s of stats) {
+      if (!result[s.user_id]) result[s.user_id] = { tokens: 0, quota: 0 }
+      result[s.user_id].tokens += s.total_tokens
+      result[s.user_id].quota  += s.quota
+    }
+    return result
+  }, [stats])
+
   const currentSelected = selectedIds === null ? allIds : selectedIds
 
   return (
@@ -198,6 +212,9 @@ export default function DashboardPage() {
               member={m}
               tokens={tokenSummary[m.id] || { today: 0, thisMonth: 0 }}
               quota={quotaSummary[m.id]  || { today: 0, thisMonth: 0 }}
+              periodTokens={periodSummary[m.id]?.tokens ?? 0}
+              periodQuota={periodSummary[m.id]?.quota   ?? 0}
+              frt={frtMap[String(m.id)]}
             />
           ))}
           {members.length === 0 && !loading && (
