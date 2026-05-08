@@ -23,7 +23,7 @@ export default function MemberCard({ member, tokens, quota, periodTokens = 0, pe
     if (ms === undefined || ms === null) return 'inherit'
     const s = ms / 1000
     if (s < 7)  return 'var(--semi-color-success)'
-    if (s < 30) return 'var(--semi-color-warning)'
+    if (s <= 30) return 'var(--semi-color-warning)'
     return 'var(--semi-color-danger)'
   }
 

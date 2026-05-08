@@ -80,12 +80,17 @@ export default function DashboardPage() {
       if (!sRes.success)  { Toast.error(sRes.message);  return }
       if (!msRes.success) { Toast.error(msRes.message); return }
       if (!gsRes.success) { Toast.error(gsRes.message); return }
-      if (!frtRes.success) { Toast.error(frtRes.message); return }
       setMembers(mRes.data   || [])
       setStats(sRes.data     || [])
       setModelStats(msRes.data || [])
       setGroupStats(gsRes.data || [])
-      setFrtMap(frtRes.data || {})
+      // frt is supplementary — failure shows a warning but does not block the dashboard
+      if (frtRes.success) {
+        setFrtMap(frtRes.data || {})
+      } else {
+        Toast.warning('首字响应数据加载失败')
+        setFrtMap({})
+      }
       setSelectedIds(null) // reset to all on reload
     } catch {
       Toast.error('加载失败，请刷新重试')
