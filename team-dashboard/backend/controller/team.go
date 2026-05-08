@@ -174,7 +174,7 @@ func Frt(c *gin.Context) {
 
 	frtMap, err := model.GetMemberAvgFrt(memberIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "frt 查询失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "查询失败"})
 		return
 	}
 
