@@ -39,3 +39,6 @@ export const getTokens = () =>
 
 export const getKumaStatus = () =>
   client.get('/team/kuma').then(r => r.data)
+
+export const getFrt = () =>
+  client.get('/team/frt').then(r => r.data)
