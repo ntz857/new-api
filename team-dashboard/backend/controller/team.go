@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"strconv"
 	"team-dashboard/model"
 	"time"
 
@@ -156,4 +157,32 @@ func GroupStats(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": groupStats})
+}
+
+func Frt(c *gin.Context) {
+	leaderID := c.GetInt("user_id")
+
+	members, err := model.GetMembersByLeaderID(leaderID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "查询失败"})
+		return
+	}
+	memberIDs := make([]int, 0, len(members))
+	for _, m := range members {
+		memberIDs = append(memberIDs, m.Id)
+	}
+
+	frtMap, err := model.GetMemberAvgFrt(memberIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "frt 查询失败"})
+		return
+	}
+
+	// Convert map[int]float64 to map[string]float64 for JSON output
+	out := make(map[string]float64, len(frtMap))
+	for uid, v := range frtMap {
+		out[strconv.Itoa(uid)] = v
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": out})
 }
