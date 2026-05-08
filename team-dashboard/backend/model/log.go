@@ -12,6 +12,7 @@ type Log struct {
 	CompletionTokens int    `gorm:"column:completion_tokens"`
 	Quota            int    `gorm:"column:quota"`
 	Group            string `gorm:"column:group"`
+	Other            string `gorm:"column:other"`
 }
 
 func (Log) TableName() string { return "logs" }
@@ -214,6 +215,9 @@ func GetDailyGroupStats(memberIDs []int, start, end time.Time) ([]DailyGroupStat
 	return stats, nil
 }
 
+// frtWindowSecs is the lookback window for avg first-response-token time queries.
+const frtWindowSecs = 600 // 10 minutes
+
 // GetMemberAvgFrt returns the average first-response-token time (in ms) for each
 // member over the last 10 minutes. Only records with a non-null, non-zero frt
 // value in the `other` JSON field are included.
@@ -223,7 +227,7 @@ func GetMemberAvgFrt(memberIDs []int) (map[int]float64, error) {
 		return map[int]float64{}, nil
 	}
 
-	since := time.Now().Unix() - 600
+	since := time.Now().Unix() - frtWindowSecs
 
 	type rawRow struct {
 		UserID int
@@ -235,7 +239,7 @@ func GetMemberAvgFrt(memberIDs []int) (map[int]float64, error) {
 	case "postgres":
 		frtExpr = "CAST(other::json->>'frt' AS FLOAT)"
 	case "mysql":
-		frtExpr = "CAST(JSON_EXTRACT(other, '$.frt') AS DECIMAL(20,4))"
+		frtExpr = "CAST(JSON_EXTRACT(other, '$.frt') AS FLOAT)"
 	default: // sqlite
 		frtExpr = "CAST(json_extract(other, '$.frt') AS REAL)"
 	}
@@ -243,7 +247,7 @@ func GetMemberAvgFrt(memberIDs []int) (map[int]float64, error) {
 	var rows []rawRow
 	err := DB.Model(&Log{}).
 		Select("user_id, AVG("+frtExpr+") as avg_frt").
-		Where("user_id IN ? AND created_at >= ? AND "+frtExpr+" > 0", memberIDs, since).
+		Where("user_id IN ? AND created_at >= ? AND other IS NOT NULL AND other != '' AND "+frtExpr+" > 0", memberIDs, since).
 		Group("user_id").
 		Scan(&rows).Error
 	if err != nil {
