@@ -213,3 +213,46 @@ func GetDailyGroupStats(memberIDs []int, start, end time.Time) ([]DailyGroupStat
 	}
 	return stats, nil
 }
+
+// GetMemberAvgFrt returns the average first-response-token time (in ms) for each
+// member over the last 10 minutes. Only records with a non-null, non-zero frt
+// value in the `other` JSON field are included.
+// Returns map[userID]avgFrtMs. Members with no data are absent from the map.
+func GetMemberAvgFrt(memberIDs []int) (map[int]float64, error) {
+	if len(memberIDs) == 0 {
+		return map[int]float64{}, nil
+	}
+
+	since := time.Now().Unix() - 600
+
+	type rawRow struct {
+		UserID int
+		AvgFrt float64
+	}
+
+	var frtExpr string
+	switch DBType {
+	case "postgres":
+		frtExpr = "CAST(other::json->>'frt' AS FLOAT)"
+	case "mysql":
+		frtExpr = "CAST(JSON_EXTRACT(other, '$.frt') AS DECIMAL(20,4))"
+	default: // sqlite
+		frtExpr = "CAST(json_extract(other, '$.frt') AS REAL)"
+	}
+
+	var rows []rawRow
+	err := DB.Model(&Log{}).
+		Select("user_id, AVG("+frtExpr+") as avg_frt").
+		Where("user_id IN ? AND created_at >= ? AND "+frtExpr+" > 0", memberIDs, since).
+		Group("user_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[int]float64, len(rows))
+	for _, r := range rows {
+		result[r.UserID] = r.AvgFrt
+	}
+	return result, nil
+}
