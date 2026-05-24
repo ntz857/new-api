@@ -1,6 +1,8 @@
 package system_setting
 
 import (
+	"os"
+
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/config"
 )
@@ -10,10 +12,13 @@ type ThemeSettings struct {
 }
 
 var themeSettings = ThemeSettings{
-	Frontend: "classic",
+	Frontend: "default",
 }
 
 func init() {
+	if envTheme := os.Getenv("THEME"); envTheme == "default" || envTheme == "apini" {
+		themeSettings.Frontend = envTheme
+	}
 	config.GlobalConfig.Register("theme", &themeSettings)
 	syncThemeToCommon()
 }

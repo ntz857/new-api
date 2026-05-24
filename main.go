@@ -41,11 +41,11 @@ var buildFS embed.FS
 //go:embed web/default/dist/index.html
 var indexPage []byte
 
-//go:embed web/classic/dist
-var classicBuildFS embed.FS
+//go:embed web/apini/dist
+var apiniBuildFS embed.FS
 
-//go:embed web/classic/dist/index.html
-var classicIndexPage []byte
+//go:embed web/apini/dist/index.html
+var apiniIndexPage []byte
 
 func main() {
 	startTime := time.Now()
@@ -189,16 +189,38 @@ func main() {
 	InjectUmamiAnalytics()
 	InjectGoogleAnalytics()
 
-	// 设置路由
-	router.SetRouter(server, router.ThemeAssets{
+	themeAssets := router.ThemeAssets{
 		DefaultBuildFS:   buildFS,
 		DefaultIndexPage: indexPage,
-		ClassicBuildFS:   classicBuildFS,
-		ClassicIndexPage: classicIndexPage,
-	})
+		ApiniBuildFS:     apiniBuildFS,
+		ApiniIndexPage:   apiniIndexPage,
+	}
+
+	// 设置路由
+	router.SetRouter(server, themeAssets)
+
 	var port = os.Getenv("PORT")
 	if port == "" {
 		port = strconv.Itoa(*common.Port)
+	}
+
+	// Start developer frontend on DEV_PORT (default theme, separate port)
+	if devPort := os.Getenv("DEV_PORT"); devPort != "" {
+		devServer := gin.New()
+		devServer.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
+			common.SysLog(fmt.Sprintf("dev server panic: %v", err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": fmt.Sprintf("panic: %v", err)}})
+		}))
+		devServer.Use(middleware.RequestId())
+		devServer.Use(middleware.I18n())
+		devServer.Use(sessions.Sessions("session", cookie.NewStore([]byte(common.SessionSecret))))
+		router.SetDevRouter(devServer, themeAssets)
+		gopool.Go(func() {
+			common.SysLog("developer frontend listening on :" + devPort)
+			if err := devServer.Run(":" + devPort); err != nil {
+				common.FatalLog("failed to start dev frontend server: " + err.Error())
+			}
+		})
 	}
 
 	// Log startup success message
@@ -228,7 +250,7 @@ func InjectUmamiAnalytics() {
 	analyticsInject := []byte(analyticsInjectBuilder.String())
 	placeholder := []byte("<!--umami-->\n")
 	indexPage = bytes.ReplaceAll(indexPage, placeholder, analyticsInject)
-	classicIndexPage = bytes.ReplaceAll(classicIndexPage, placeholder, analyticsInject)
+	apiniIndexPage = bytes.ReplaceAll(apiniIndexPage, placeholder, analyticsInject)
 }
 
 func InjectGoogleAnalytics() {
@@ -252,7 +274,7 @@ func InjectGoogleAnalytics() {
 	analyticsInject := []byte(analyticsInjectBuilder.String())
 	placeholder := []byte("<!--Google Analytics-->\n")
 	indexPage = bytes.ReplaceAll(indexPage, placeholder, analyticsInject)
-	classicIndexPage = bytes.ReplaceAll(classicIndexPage, placeholder, analyticsInject)
+	apiniIndexPage = bytes.ReplaceAll(apiniIndexPage, placeholder, analyticsInject)
 }
 
 func InitResources() error {

@@ -9,7 +9,6 @@ build
 *.db-journal
 logs
 web/default/dist
-web/classic/dist
 web/node_modules
 web/dist
 .env
@@ -35,3 +34,8 @@ data/
 .test
 token_estimator_test.go
 skills-lock.json
+
+# Local-only docker testing files (proxy config, fast-build variants)
+Dockerfile.apini.local
+Dockerfile.apini.local.dockerignore
+docker-compose.apini.local.yml

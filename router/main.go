@@ -12,6 +12,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func SetDevRouter(router *gin.Engine, assets ThemeAssets) {
+	SetApiRouter(router)
+	SetDashboardRouter(router)
+	SetRelayRouter(router)
+	SetVideoRouter(router)
+	SetDevWebRouter(router, assets)
+}
+
 func SetRouter(router *gin.Engine, assets ThemeAssets) {
 	SetApiRouter(router)
 	SetDashboardRouter(router)
